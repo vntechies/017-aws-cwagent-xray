@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	http "net/http"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 type Message struct {
@@ -24,8 +27,8 @@ func main() {
 	fmt.Println("Hello world")
 	fmt.Println("Server is running on port 8080")
 	fmt.Println("auth aws")
-	sess := GetSession()
 
+	sess := GetSession()
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		fromCowSay := getMessage()
 		randomId := GenerateRandomString(10)
@@ -57,6 +60,7 @@ func getMessage() string {
 
 func writeMessage(messageInput string, sess *session.Session, Id string, w http.ResponseWriter) (*Message, http.ResponseWriter, error) {
 	client := dynamodb.New(sess)
+	ctx, seg := xray.BeginSegment(context.Background(), "dynamodb")
 	M := Message{Message: messageInput, Id: Id}
 	item := map[string]*dynamodb.AttributeValue{
 		"id": {
@@ -66,18 +70,17 @@ func writeMessage(messageInput string, sess *session.Session, Id string, w http.
 			S: aws.String(M.Message),
 		},
 	}
-
 	// Put the message in DynamoDB.
 	putInput := &dynamodb.PutItemInput{
 		TableName: aws.String("message"),
 		Item:      item,
 	}
-	_, err := client.PutItem(putInput)
+	_, err := client.PutItemWithContext(ctx, putInput)
 	if err != nil {
 		fmt.Println(err)
 		return nil, w, fmt.Errorf("Error when put item to dynamodb %w", err)
 	}
-
+	seg.Close(nil)
 	return &M, w, nil
 }
 
@@ -97,6 +100,7 @@ func GetSession() *session.Session {
 
 func readMessage(id string, sess *session.Session) (string, error) {
 	client := dynamodb.New(sess)
+	ctx, seg := xray.BeginSegment(context.Background(), "dynamodb")
 	getIn := &dynamodb.GetItemInput{
 		TableName: aws.String("message"),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -107,7 +111,7 @@ func readMessage(id string, sess *session.Session) (string, error) {
 	}
 
 	// Get the item from DynamoDB.
-	result, err := client.GetItem(getIn)
+	result, err := client.GetItemWithContext(ctx, getIn)
 	if err != nil {
 		fmt.Println(err)
 		return "", fmt.Errorf("Error when get item from dynamodb %w", err)
@@ -120,6 +124,7 @@ func readMessage(id string, sess *session.Session) (string, error) {
 	} else {
 		fmt.Println("Item not found.")
 	}
+	seg.Close(nil)
 	// return result message
 	return *result.Item["message"].S, nil
 }
