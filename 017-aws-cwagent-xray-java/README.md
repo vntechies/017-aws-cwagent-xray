@@ -12,7 +12,7 @@ cd amazon-cloadwatch-for-aws-xray
 - Change ACCESS_KEY and SECRET_ACCESS_KEY
 ```
 public static final String ACCESS_KEY  = "";
-public static final String SECRET_ACCESS_KEY = "N6UgALtwldB1T/TYllup0ae4QBHbL5IcuC2BNXb5";
+public static final String SECRET_ACCESS_KEY = "";
 ```
 
 - Install dependencies
@@ -26,3 +26,20 @@ mvn install
   - Primary Key: `id`
   - Sort Key: `name`
 - Create a bucket with name `aws-cloudwatch-agent-for-aws-xray`
+
+## API
+
+- healthcheck
+```
+{{host}}/healthcheck
+```
+
+- Insert a DynamoDB record
+```
+{{host}}/api/dynamodb/addItem
+```
+
+- Put an object to S3
+```
+{{host}}/api/s3/putObject
+```
